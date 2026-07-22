@@ -30,8 +30,8 @@ This project is specifically designed for application security workshops and tec
              │ [Passes 127.0.0.1 Check + Deserializes] │
              └────────────────────┬────────────────────┘
                                   │
-                                  │ 3. Uses Commons Collections 3.2.1
-                                  │    Gadget Chain (InvokerTransformer)
+                                  │ 3. Executes the deserialization sink
+                                  │    with a serialized payload input
                                   ▼
              ┌─────────────────────────────────────────┐
              │       SYSTEM COMMAND EXECUTION          │
@@ -48,9 +48,9 @@ This project is specifically designed for application security workshops and tec
 * **Vulnerability:** The endpoint `/api/v1/profile/avatar/fetch` takes a user-supplied `imageUrl` query parameter and opens an HTTP connection directly via `java.net.URL.openConnection()`.
 * **Risk:** The application does not validate, sanitize, or filter target hostnames or IP addresses, allowing an attacker to coerce the application server into initiating requests to internal services or local loopback addresses (`127.0.0.1`).
 
-### 2. SCA Finding: Known Deserialization Gadget Chain (CVE-2015-7501)
-* **Dependency:** `commons-collections:commons-collections:3.2.1`
-* **Vulnerability:** Apache Commons Collections versions `3.2.1` and earlier contain transformer classes (`InvokerTransformer`, `LazyMap`) that can be chained together during Java object deserialization to invoke arbitrary methods and execute operating system commands.
+### 2. Dependency Variant: Removed from This Branch
+* **State:** The vulnerable legacy deserialization dependency has been removed from this branch's Maven configuration.
+* **Impact:** The application still demonstrates the SSRF and deserialization sink flow, but this branch no longer includes the old dependency that previously enabled the gadget chain.
 
 ### 3. Application Sink: Internal Unsafe Object Deserialization
 * **File:** `src/main/java/com/demo/security/controller/InternalImportController.java`
@@ -97,7 +97,7 @@ curl -X POST "http://localhost:8080/api/v1/profile/avatar/fetch?imageUrl=http://
 > 1. `ProfileController` receives the request and issues an HTTP POST to `http://127.0.0.1:8080/internal/import`.
 > 2. `InternalImportController` validates that `remoteAddr` is `127.0.0.1` (which passes).
 > 3. `ObjectInputStream.readObject()` executes.
-> 4. `commons-collections:3.2.1` evaluates the serialized gadget chain and executes arbitrary OS commands.
+> 4. The deserialization sink evaluates the serialized payload and reaches the execution path.
 
 ---
 
@@ -105,7 +105,7 @@ curl -X POST "http://localhost:8080/api/v1/profile/avatar/fetch?imageUrl=http://
 
 | Detection Engine | Finding | Standalone Severity | Correlated Severity |
 | :--- | :--- | :--- | :--- |
-| **SCA** | `commons-collections:3.2.1` (CVE-2015-7501) | Medium / High | **CRITICAL** |
+| **SCA** | Removed from this branch | N/A | N/A |
 | **SAST** | SSRF Flaw (`ProfileController.java`) | Medium | **CRITICAL** |
 | **SAST** | Unsafe Deserialization (`InternalImportController.java`) | Low (Internal Only) | **CRITICAL** |
 
@@ -117,7 +117,7 @@ curl -X POST "http://localhost:8080/api/v1/profile/avatar/fetch?imageUrl=http://
    * **Checkmarx Correlation** connects the public SSRF entry point, the internal sink, and the vulnerable dependency, proving **exploitability** and elevating triage priority.
 
 2. **Flexible Remediation Options:**
-   * **SCA Remediation (Fastest Path):** Upgrade `commons-collections` to version `3.2.2` or `4.4` in `pom.xml`. This disables unsafe transformer deserialization by default, neutralizing the RCE even if the SSRF persists.
+   * **Dependency Remediation (Fastest Path):** Remove the vulnerable legacy dependency from `pom.xml` and keep only the application code paths under test.
    * **SAST Remediation (Root Cause Fix):** Implement an IP allowlist/blocklist in `ProfileController.java` to prevent requests to loopback (`127.0.0.1`, `localhost`) and metadata IPs (`169.254.169.254`).
 
 ---
