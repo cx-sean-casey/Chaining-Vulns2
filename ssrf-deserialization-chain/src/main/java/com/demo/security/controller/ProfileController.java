@@ -21,6 +21,7 @@ public class ProfileController {
             return "Fetched image URL: " + imageUrl + " responded with status " + responseCode;
         } catch (Exception ex) {
             return "Error: " + ex.getMessage();
+            // Adding a comment to indicate that this is a potential SSRF vulnerability. In a real-world application, you should validate the URL and restrict access to internal resources.
         }
     }
 }
